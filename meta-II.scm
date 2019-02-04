@@ -48,26 +48,6 @@
 ;; this code through a META II program that can convert META II
 ;; grammars into Scheme code?  If so, what does such a program look
 ;; like?  If not, why not?
-
-(define ex3
-  (<:> (doM* (x <- id)
-             (out "LD ~a" x))
-       (doM* (symb "(")
-             ex1
-             (symb ")"))))
-
-(define ex2
-  (doM* ex3
-        (many (doM* (symb "*")
-                    ex3
-                    (out "MLT")))))
-
-(define ex1
-  (doM* ex2
-        (many (doM* (symb "+")
-                    ex2
-                    (out "ADD")))))
-
 (define out1
   (<:> (doM* (symb "*1")
              (out "GN1"))
