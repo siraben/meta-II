@@ -82,6 +82,26 @@ void vm_test_inst(mvm_t *vm) {
 
 }
 
+void vm_ci_inst(mvm_t *vm) {
+  if (!vm) {
+    eprintf("VM_CI_INST: Null pointer received.");
+  }
+  char *msg = vm->token_buffer;
+  uint8_t col = vm->curr_col;
+  if (col > 70) {
+    eprintf("VM_CI_INST: Invalid column: %hu", col);
+  }
+  for(uint8_t i = 0; i < col; i++) {
+    putchar(' ');
+  }
+  printf("%s\n", msg);
+  return;
+}
+void install_opcodes(mvm_t *vm) {
+  vm->opcodes[TST] = vm_test_inst;
+  vm->opcodes[CI] = vm_ci_inst;
+  return;
+}
 mvm_t *mvm_new(uint8_t *code, const char *input, uint16_t code_size) {
   mvm_t *res;
   res = calloc(1, sizeof(mvm_t));
@@ -90,7 +110,8 @@ mvm_t *mvm_new(uint8_t *code, const char *input, uint16_t code_size) {
   }
   memcpy(res->code, code, MAX_CODE_BYTES);
   res->code_size = code_size;
-  res->opcodes[0] = vm_test_inst;
+  // Install opcodes.
+  install_opcodes(res);
   res->input_size = strlen(input);
   strncpy(res->input_buffer, input, strlen(input));
   return res;
@@ -136,9 +157,14 @@ void mvm_advance_input_N(mvm_t * vm, uint16_t amount) {
 void mvm_run_N_instructions(mvm_t *vm, uint16_t max_instructions) {
   printf("Initial start.\n");
   mvm_print_info(vm);
+  opcode_implementation *current_instruction;
   for (uint16_t i = 0; i < max_instructions; i++) {
     printf("Cycle: %d\nInstruction: %d\n", i, vm->code[vm->ip]);
-    vm->opcodes[vm->code[vm->ip]](vm);
+    current_instruction = vm->opcodes[vm->code[vm->ip]];
+    if (!current_instruction) {
+      eprintf("Invalid instruction: %d", vm->code[vm->ip]);
+    }
+    current_instruction(vm);
     mvm_print_info(vm);
     if (vm->input_buffer_pointer == vm->input_size) {
       printf("VM execution done.\n");

@@ -40,6 +40,8 @@ typedef struct mvm {
   
   char token_buffer[MAX_TOKEN_BUFFER_SIZE];
   char scratch[MAX_TOKEN_BUFFER_SIZE];
+
+  uint8_t curr_col;
 } mvm_t;
 
 // Allocate memory for a new virtual machine.

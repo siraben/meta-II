@@ -10,26 +10,26 @@ Each opcode takes up a byte corresponding to the following table:
 - `<STR>` indicates a null-terminated ASCII string.
 - `<ADDR>` indicates a 16-bit unsigned little endian address.
 
-| Opcode | Instruction  | Name                                                     |
-| :-:    | :-:          | :-:                                                      |
-| 0      | `TST <STR>`  | Test for `<STR>`.                                        |
-| 1      | `ID`         | Read identifier to token buffer.                         |
-| 2      | `NUM`        | Read number to token buffer.                             |
-| 3      | `SR`         | Read single-quote delimited string to token buffer.      |
-| 4      | `CLL <ADDR>` | Call subroutine.                                         |
-| 5      | `R`          | Return from subroutine.                                  |
-| 6      | `SET`        | Set switch to true.                                      |
-| 7      | `B <ADDR>`   | Unconditional branch.                                    |
-| 8      | `BT <ADDR>`  | Branch if switch is true.                                |
-| 9      | `BF <ADDR>`  | Branch if switch is false.                               |
-| 10     | `BE`         | Error if switch is false.                                |
-| 11     | `CL <STR>`   | Copy `<STR>` to output buffer.                           |
-| 12     | `CI`         | Copy token buffer to output buffer.                      |
-| 13     | `GN1`        | Generate unique label if L1 is blank, then output label. |
-| 14     | `GN2`        | Generate unique label if L2 is blank, then output label. |
-| 15     | `LB`         | Set output buffer to first column.                       |
-| 16     | `OUT`        | Output line terminator, set output column to 8th column. |
-| 17     | `END`        | Halt immediately.                                        |
+| Hex Opcode | Instruction  | Name                                                     |
+| :-:        | :-:          | :-:                                                      |
+| 0          | `TST <STR>`  | Test for `<STR>`.                                        |
+| 1          | `ID`         | Read identifier to token buffer.                         |
+| 2          | `NUM`        | Read number to token buffer.                             |
+| 3          | `SR`         | Read single-quote delimited string to token buffer.      |
+| 4          | `CLL <ADDR>` | Call subroutine.                                         |
+| 5          | `R`          | Return from subroutine.                                  |
+| 6          | `SET`        | Set switch to true.                                      |
+| 7          | `B <ADDR>`   | Unconditional branch.                                    |
+| 8          | `BT <ADDR>`  | Branch if switch is true.                                |
+| 9          | `BF <ADDR>`  | Branch if switch is false.                               |
+| A          | `BE`         | Error if switch is false.                                |
+| B          | `CL <STR>`   | Copy `<STR>` to output buffer.                           |
+| C          | `CI`         | Copy token buffer to output buffer.                      |
+| D          | `GN1`        | Generate unique label if L1 is blank, then output label. |
+| E          | `GN2`        | Generate unique label if L2 is blank, then output label. |
+| F          | `LB`         | Set output buffer to first column.                       |
+| 10         | `OUT`        | Output line terminator, set output column to 8th column. |
+| 11         | `END`        | Halt immediately.                                        |
 
 Where `<ADDR>` is indicated, this is a 16-bit address (little endian,
 or lowest byte first).  So the instruction `B $1234` becomes `$7 $34
