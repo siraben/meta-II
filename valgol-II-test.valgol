@@ -1,0 +1,54 @@
+.BEGIN 
+.PROCEDURE DETERMINANT(A, N) .,
+.BEGIN 
+.PROCEDURE DUMP() ., 
+.BEGIN 
+.REAL D .,
+.FOR D = 0 .STEP 1 .UNTIL N-1 .DO 
+     WRITE(MATRIX(. N*D .), N) .,
+PRINT
+.END DUMP .,
+.PROCEDURE ABS(X) .,
+     ABS = .IF 0 .L=  X .THEN X .ELSE -X .,
+.REAL PRODUCT, FACTOR, TEMP, R, I, J ., 
+PRODUCT = 1 .,
+.FOR R = 0 .STEP 1 .UNTIL N-2 
+.WHILE PRODUCT .-= 0 .DO .BEGIN 
+     I = R ., 
+    .FOR J = R+1 .STEP 1 .UNTIL N-1 .DO 
+        .IF ABS( A(. N*I + R .) ) .L 
+        ABS( A(. N*J + R .) ) .THEN 
+             I = J ., 
+   .IF  A(. N*I + R .) .= 0 .THEN 
+         PRODUCT = 0 
+   .ELSE 
+         .IF I .-= R .THEN .BEGIN 
+              PRODUCT = -PRODUCT ., 
+             .FOR J = R .STEP 1 .UNTIL N-1 .DO 
+             .BEGIN 
+                  TEMP = A(. N*R + J .) ., 
+                  A(. N*R + J .) = A(. N * I + J .) ., 
+                  A(. N*I + J .) = TEMP .END .END ., 
+         TEMP = A(. N*R + R .) ., 
+         .FOR I = R+I .STEP 1 .UNTIL N-1 .DO 
+         .BEGIN 
+              FACTOR = A(. N*I + R .) / TEMP ., 
+             .FOR J = +I .STEP 1 .UNTIL N-1 .DO 
+                  A(.N*I + J .) = A(. N*I + J .) 
+                  -FACTOR * A(. N*R + J .) ., 
+         DUMP
+     .END .END., 
+.FOR I = 0 .STEP I .UNTIL N-1 .DO 
+     PRODUCT = PRODUCT * A(. N*I + I .) .,
+DETERMINANT = PRODUCT 
+.END DETERMINANT ., 
+.REAL M, W, T ., .ARRAY MATRIX (. O .. 24 .) ., 
+.UNTIL .FALSE .DO .BEGIN 
+     EDIT(1, 'FIND DETERMINANT OF' ) ., PRINT., PRINT., 
+     READ(M, 1) ., 
+     .FOR W = 0 .STEP 1 .UNTIL M-1 .DO .BEGIN 
+          READ(MATRIX (. M*W .), M) .,
+          WRITE(MATRIX (. M*W .), M) .END .,
+     PRINT ., T = DETERMINANT (MATRIX, M) ., 
+     WRITE(T, 1) ., PRINT., PRINT .END 
+.END PROGRAM

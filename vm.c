@@ -6,9 +6,8 @@
 #include <errno.h>
 #include <ctype.h>
 
-#define INPUT_BUFFER_SIZE 65535
-#define TOKEN_BUFFER_SIZE 128
-
+#include "vm.h"
+#define MAX_CODE_BYTES 65535
 
 typedef enum {
   TST,
@@ -30,11 +29,10 @@ typedef enum {
   OUT,
   END
 } meta_II_instruction;
-  
-static void eprintf(const char *, ...);
-static char *estrndup(const char *, size_t);
 
-static void eprintf(const char *fmt, ...) {
+
+
+void eprintf(const char *fmt, ...) {
   va_list ap;
 
   va_start(ap, fmt);
@@ -59,25 +57,117 @@ static void skip_whitespace(char **s) {
 }
 
 
-int main(int argc, const char* argv[]) {
-  if (argc != 2) {
-    fputs("Usage: ./vm <META II bytecode file>\n", stdout);
-    return 1;
+void mvm_advance_ip_N(mvm_t * vm, uint16_t amount);
+void mvm_advance_input_N(mvm_t * vm, uint16_t amount);
+  
+void vm_test_inst(mvm_t *vm) {
+  char *original = vm->input_buffer_pointer + vm->input_buffer;
+  char **s = &original;
+  char *token = vm->ip + vm->token_buffer;
+  // Need + 1 because IP is still on the instruction TST.`
+  strncpy(vm->scratch, (char*)(vm->code + vm->ip + 1), MAX_TOKEN_BUFFER_SIZE);
+  printf("TST '%s' -> ", vm->scratch);
+  if (match(s, vm->scratch)) {
+    strncpy(vm->token_buffer, vm->scratch, MAX_TOKEN_BUFFER_SIZE);
+    uint16_t token_size = strlen(vm->token_buffer);
+    printf("matched length %hu\n", token_size);
+    // Also skip NULL delimiter.
+    mvm_advance_input_N(vm, token_size + 1);
+    mvm_advance_ip_N(vm, token_size + 1);
+    return;
   }
-  FILE *file = 0;
+  printf("failed\n");
+  *s = original;
+  return;
 
-  file = fopen(argv[1], "r");
-  if (!file) {
-    eprintf("Failed to open file %s.\n", argv[1]);
+}
+
+mvm_t *mvm_new(uint8_t *code, const char *input, uint16_t code_size) {
+  mvm_t *res;
+  res = calloc(1, sizeof(mvm_t));
+  if (!res) {
+    eprintf("MVM_NEW: Out of memory.");
   }
-  char input[INPUT_BUFFER_SIZE];
-  char token[TOKEN_BUFFER_SIZE];
-  char *copy;
-  size_t chars_read = fread(input, sizeof(*input), INPUT_BUFFER_SIZE, file);
-  printf("%ld\n", chars_read);
+  memcpy(res->code, code, MAX_CODE_BYTES);
+  res->code_size = code_size;
+  res->opcodes[0] = vm_test_inst;
+  res->input_size = strlen(input);
+  strncpy(res->input_buffer, input, strlen(input));
+  return res;
   
-  fclose(file);
-  return 0;
+}
+unsigned char next_byte(mvm_t * vm) {
+    vm->ip += 1;
+
+    // Wrap around.
+    if (vm->ip >= 0xFFFF){
+        vm->ip = 0;
+    }
+    
+    return (vm->code[vm->ip]);
+}
+
+
+void mvm_advance_ip_N(mvm_t * vm, uint16_t amount) {
+    vm->ip += amount;
+    if (vm->ip > vm->code_size) {
+      eprintf("MVM_ADVANCE_IP_N: Out of bounds.");
+    }
+    // Wrap around.
+    if (vm->ip >= 0xFFFF){
+        vm->ip = 0;
+    }
+    return;
+}
+
+
+void mvm_advance_input_N(mvm_t * vm, uint16_t amount) {
+    vm->input_buffer_pointer += amount;
+    if (vm->input_buffer_pointer > vm->input_size) {
+      eprintf("MVM_ADVANCE_INPUT_N: Out of bounds.");
+    }
+    // Wrap around.
+    if (vm->input_buffer_pointer >= 0xFFFF) {
+        vm->input_buffer_pointer = 0;
+    }
+    return;
+}
+
+void mvm_run_N_instructions(mvm_t *vm, uint16_t max_instructions) {
+  printf("Initial start.\n");
+  mvm_print_info(vm);
+  for (uint16_t i = 0; i < max_instructions; i++) {
+    printf("Cycle: %d\nInstruction: %d\n", i, vm->code[vm->ip]);
+    vm->opcodes[vm->code[vm->ip]](vm);
+    mvm_print_info(vm);
+    if (vm->input_buffer_pointer == vm->input_size) {
+      printf("VM execution done.\n");
+      return;
+    }
+    next_byte(vm);
+  }
+}
+
+void mvm_free(mvm_t *vm) {
+  if (!vm) {
+    eprintf("MVM_FREE: Null pointer received.");
+  }
+  // Free the VM itself.
+  free(vm);
+}
+
+void mvm_print_info(mvm_t *vm) {
+  if (!vm) {
+    eprintf("MVM_PRINT_INFO: Null pointer received.");
+  }
+  printf("Code length: %d\n", vm->code_size);
+  printf("Input length: %d\n", vm->input_size);
+  printf("Instruction pointer: %hu\n", vm->ip);
+  printf("Input buffer pointer: %hu\n", vm->input_buffer_pointer);
+  printf("Output buffer pointer: %hu\n", vm->output_buffer_pointer);
+  printf("Stack pointer: %d\n", vm->stack_pointer);
+
   
-  
+  puts("");
+  return;
 }
