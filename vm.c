@@ -51,6 +51,17 @@ void mvm_reset_switch(mvm_t *vm) {
   return;
 }
 
+unsigned char next_byte(mvm_t * vm) {
+  if (!vm) {
+    eprintf("NEXT_BYTE: Null pointer received.");
+  }  
+  vm->ip += 1;
+  if (vm->ip > vm->code_size) {
+    eprintf("NEXT_BYTE: Out of bounds.");
+  }    
+  return (vm->code[vm->ip]);
+}
+
 void vm_tst_inst(mvm_t *vm) {
   if (!vm) {
     eprintf("VM_TST_INST: Null pointer received.");
@@ -160,6 +171,7 @@ void vm_sr_inst(mvm_t *vm) {
   skip_whitespace(s);
   if (**s != '\'') {
     printf("SR failed\n");
+    mvm_reset_switch(vm);
     return;
   }
   (*s)++;
@@ -187,20 +199,93 @@ void vm_sr_inst(mvm_t *vm) {
 }
 
 void vm_end_inst(mvm_t *vm) {
+  if (!vm) {
+    eprintf("VM_END_INST: Null pointer received.");
+  }  
   printf("Ending machine.\n");
   vm->ip = vm->code_size - 1;
   return;
 }
 
+void vm_b_inst(mvm_t *vm) {
+  if (!vm) {
+     eprintf("VM_B_INST: Null pointer received.");
+  }  
+  uint16_t dest;
+  uint8_t b1 = next_byte(vm);
+  uint8_t b2 = next_byte(vm);  
+  dest = b1 + (b2 << 8);
+  vm->ip = dest;
+  if (vm->ip > vm->code_size) {
+    eprintf("VM_B_INST: Out of bounds.");
+  }
+
+}
+
+void vm_be_inst(mvm_t *vm) {
+  if (!vm) {
+    eprintf("VM_BE_INST: Null pointer received.");
+  }
+  if (!(vm->the_switch)) {
+    eprintf("VM_BE_INST: BE instruction encountered, stopping.");
+  }
+}
+
+void vm_bt_inst(mvm_t *vm) {
+  if (!vm) {
+     eprintf("VM_BT_INST: Null pointer received.");
+  }  
+  uint16_t dest;
+  uint8_t b1 = next_byte(vm);
+  uint8_t b2 = next_byte(vm);  
+  dest = b1 + (b2 << 8);
+  if (vm->ip > vm->code_size) {
+    eprintf("VM_BT_INST: Out of bounds.");
+  }
+  
+  if (vm->the_switch) {
+    vm->ip = dest;
+  }
+  
+}
+
+void vm_bf_inst(mvm_t *vm) {
+  if (!vm) {
+     eprintf("VM_BF_INST: Null pointer received.");
+  }  
+  uint16_t dest;
+  uint8_t b1 = next_byte(vm);
+  uint8_t b2 = next_byte(vm);  
+  dest = b1 + (b2 << 8);
+  if (vm->ip > vm->code_size) {
+    eprintf("VM_BF_INST: Out of bounds.");
+  }
+  
+  if (vm->the_switch) {
+    vm->ip = dest;
+  }
+  
+}
+
 void install_opcodes(mvm_t *vm) {
   vm->opcodes[TST] = vm_tst_inst;
-  vm->opcodes[CI] = vm_ci_inst;
-  vm->opcodes[SET] = vm_set_inst;
-  vm->opcodes[LB] = vm_lb_inst;
   vm->opcodes[ID] = vm_id_inst;
-  vm->opcodes[OUT] = vm_out_inst;
+  // vm->opcodes[NUM] = vm_num_inst;
   vm->opcodes[SR] = vm_sr_inst;
-  vm->opcodes[END] = vm_end_inst;  
+  // vm->opcodes[CLL] = vm_cll_inst;
+  // vm->opcodes[R] = vm_R_inst;
+  vm->opcodes[SET] = vm_set_inst;
+  vm->opcodes[B] = vm_b_inst;
+  vm->opcodes[BT] = vm_be_inst;
+  vm->opcodes[BF] = vm_be_inst;
+  vm->opcodes[BE] = vm_be_inst;
+  vm->opcodes[CL] = vm_lb_inst;
+  vm->opcodes[CI] = vm_ci_inst;
+  // vm->opcodes[GN1] = vm_gn1_inst;
+  // vm->opcodes[GN2] = vm_gn2_inst;
+  vm->opcodes[LB] = vm_lb_inst;
+  vm->opcodes[OUT] = vm_out_inst;
+  vm->opcodes[END] = vm_end_inst;
   return;
 }
 
@@ -220,14 +305,6 @@ mvm_t *mvm_new(uint8_t *code, const char *input, uint16_t code_size) {
   return res;
   
 }
-unsigned char next_byte(mvm_t * vm) {
-  vm->ip += 1;
-  if (vm->ip > vm->code_size) {
-    eprintf("NEXT_BYTE: Out of bounds.");
-  }    
-  return (vm->code[vm->ip]);
-}
-
 
 void mvm_advance_ip_N(mvm_t * vm, uint16_t amount) {
   vm->ip += amount;
