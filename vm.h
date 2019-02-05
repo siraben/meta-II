@@ -41,8 +41,31 @@ typedef struct mvm {
   char token_buffer[MAX_TOKEN_BUFFER_SIZE];
   char scratch[MAX_TOKEN_BUFFER_SIZE];
 
-  uint8_t curr_col;
+  uint8_t col;
 } mvm_t;
+
+
+typedef enum {
+  TST,
+  ID,
+  NUM,
+  SR,
+  CLL,
+  R,
+  SET,
+  B,
+  BT,
+  BF,
+  BE,
+  CL,
+  CI,
+  GN1,
+  GN2,
+  LB,
+  OUT,
+  END
+} meta_II_instruction;
+
 
 // Allocate memory for a new virtual machine.
 mvm_t *mvm_new(uint8_t *code, const char *input, uint16_t size);
@@ -61,6 +84,8 @@ void mvm_run_N_instructions(mvm_t *vm, uint16_t max_instructions);
 
 void eprintf(const char *, ...);
 char *estrndup(const char *, size_t);
+void mvm_advance_ip_N(mvm_t * vm, uint16_t amount);
+void mvm_advance_input_N(mvm_t * vm, uint16_t amount);
 
 
 #endif
