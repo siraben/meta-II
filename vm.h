@@ -20,6 +20,7 @@ struct mvm;
 typedef void opcode_implementation(struct mvm *in);
 
 typedef struct mvm {
+  bool stack_empty;
   bool the_switch;
   uint16_t ip;
   uint8_t code[MAX_CODE_BYTES];
@@ -40,7 +41,7 @@ typedef struct mvm {
   char output_buffer[MAX_INPUT_BUFFER_SIZE];
   
   char token_buffer[MAX_TOKEN_BUFFER_SIZE];
-  char scratch[MAX_TOKEN_BUFFER_SIZE];
+  char scratch_buffer[MAX_TOKEN_BUFFER_SIZE];
 
   uint8_t col;
 } mvm_t;

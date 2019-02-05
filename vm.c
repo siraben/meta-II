@@ -10,7 +10,7 @@
 #define MAX_CODE_BYTES 65535
 #define MAX_TOKEN_BUFFER_SIZE 128
 
-#define DEBUG 0
+#define DEBUG 1
 void debug_print(const char *fmt, ...) {
   if (DEBUG) {
     va_list ap;
@@ -23,15 +23,28 @@ void debug_print(const char *fmt, ...) {
 
 
 void eprintf(const char *fmt, ...) {
-  va_list ap;
+va_list ap;
 
-  va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  va_end(ap);
-  fputc('\n', stderr);
-  exit(1);
+va_start(ap, fmt);
+vfprintf(stderr, fmt, ap);
+va_end(ap);
+fputc('\n', stderr);
+exit(1);
 }
 
+void clear_token_buffer(mvm_t *vm) {
+  if (!vm) {
+    eprintf("CLEAR_TOKEN_BUFFER: Null pointer received.");
+  }
+  memset(vm->token_buffer, 0, MAX_TOKEN_BUFFER_SIZE);
+}
+
+void clear_scratch_buffer(mvm_t *vm) {
+  if (!vm) {
+    eprintf("CLEAR_SCRATCH_BUFFER: Null pointer received.");
+  }
+  memset(vm->scratch_buffer, 0, MAX_TOKEN_BUFFER_SIZE);
+}
 static bool match(char **s, char *token) {
   if (strncmp(*s, token, strlen(token)) == 0) {
     *s += strlen(token);
@@ -62,7 +75,7 @@ void mvm_reset_switch(mvm_t *vm) {
   return;
 }
 
-unsigned char next_byte(mvm_t * vm) {
+uint8_t next_byte(mvm_t * vm) {
   if (!vm) {
     eprintf("NEXT_BYTE: Null pointer received.");
   }  
@@ -73,26 +86,37 @@ unsigned char next_byte(mvm_t * vm) {
   return (vm->code[vm->ip]);
 }
 
+
+uint8_t current_byte(mvm_t * vm) {
+  if (!vm) {
+    eprintf("CURRENT_BYTE: Null pointer received.");
+  }
+  return vm->code[vm->ip];
+}
+
 void vm_tst_inst(mvm_t *vm) {
   if (!vm) {
     eprintf("VM_TST_INST: Null pointer received.");
   }  
   char *original = vm->input_buffer_pointer + vm->input_buffer;
   char **s = &original;
-  char *token = vm->ip + vm->token_buffer;
-  // Need + 1 because IP is still on the instruction TST.
-  strncpy(vm->scratch, (char*)(vm->code + vm->ip + 1), MAX_TOKEN_BUFFER_SIZE);
-  debug_print("TST '%s' -> ", vm->scratch);
-  if (match(s, vm->scratch)) {
-    strncpy(vm->token_buffer, vm->scratch, MAX_TOKEN_BUFFER_SIZE);
-    uint16_t token_size = strlen(vm->token_buffer);
-    debug_print("matched length %hu\n", token_size);
+
+  strncpy(vm->scratch_buffer, (char*)(vm->code + vm->ip), MAX_TOKEN_BUFFER_SIZE);
+  strncpy(vm->token_buffer, vm->scratch_buffer, MAX_TOKEN_BUFFER_SIZE);
+  uint16_t token_size = strlen(vm->token_buffer);  
+  if (match(s, vm->scratch_buffer)) {
+    debug_print("TST: Matched '%s', length %hu", vm->scratch_buffer, token_size);
+    debug_print("TST: Advancing by %d to %d", token_size + 1, token_size + vm->ip + 1);
+    mvm_set_switch(vm);
+    
+    mvm_advance_input_N(vm, token_size);
     // Also skip NULL delimiter.
-    mvm_advance_input_N(vm, token_size + 1);
     mvm_advance_ip_N(vm, token_size + 1);
     return;
   }
-  debug_print("failed\n");
+  mvm_reset_switch(vm);
+  mvm_advance_ip_N(vm, token_size + 1);
+  debug_print("TST: Failed to match '%s'", vm->scratch_buffer);
   return;
 
 }
@@ -129,10 +153,26 @@ void vm_lb_inst(mvm_t *vm) {
   return;
 }
 
+void vm_cl_inst(mvm_t *vm) {
+  if (!vm) {
+    eprintf("VM_CL_INST: Null pointer received.");
+  }
+  clear_token_buffer(vm);
+  clear_scratch_buffer(vm);
+  strncpy(vm->scratch_buffer, vm->code + vm->ip, MAX_TOKEN_BUFFER_SIZE);
+  size_t msglength = strlen(vm->scratch_buffer);
+  debug_print("CL: Printing '%s', length %d", vm->scratch_buffer, msglength);
+  printf("%s", vm->scratch_buffer);
+  mvm_advance_ip_N(vm, msglength + 1);
+  
+  return;
+}
+
 void vm_out_inst(mvm_t *vm) {
   if (!vm) {
     eprintf("VM_OUT_INST: Null pointer received.");
   }
+  
   printf("\n");
   vm->col = 7;
   return;
@@ -153,7 +193,7 @@ void vm_id_inst(mvm_t *vm) {
   char *end;
   skip_whitespace(s);
   if (!isalpha(**s) && !isnumber(**s)) {
-    debug_print("ID failed\n");
+    debug_print("ID failed");
     return;
   }  
   end = strpbrk(*s, delims);
@@ -163,13 +203,13 @@ void vm_id_inst(mvm_t *vm) {
     strncpy(vm->token_buffer, *s, id_size);
     mvm_advance_input_N(vm, id_size + 1);
     mvm_set_switch(vm);
-    debug_print("ID: %s\nSize: %lu\n", vm->token_buffer, id_size);
+    debug_print("ID: %s\nSize: %lu", vm->token_buffer, id_size);
     return;
   }
 
   mvm_reset_switch(vm);
 
-  debug_print("ID failed\n");
+  debug_print("ID failed");
   return;
   
 }
@@ -178,13 +218,13 @@ void vm_num_inst(mvm_t *vm) {
   if (!vm) {
     eprintf("VM_NUM_INST: Null pointer received.");
   }
-
+  debug_print("NUM: Entered");
   char *original = vm->input_buffer_pointer + vm->input_buffer;
   char **s = &original;
   char *end;
   skip_whitespace(s);
   if (!isnumber(**s)) {
-    debug_print("NUM failed\n");
+    debug_print("NUM: Failed");
     mvm_reset_switch(vm);
     return;
   }
@@ -195,17 +235,16 @@ void vm_num_inst(mvm_t *vm) {
     size_t id_size = strspn(*s, "1234567890");
     memset(vm->token_buffer, 0, MAX_TOKEN_BUFFER_SIZE);
     
-    // Copy the string quotes too.
     strncpy(vm->token_buffer, *s, id_size);
-    mvm_advance_input_N(vm, id_size + 1);
+    mvm_advance_input_N(vm, id_size);
     mvm_set_switch(vm);
-    printf("NUM: %s\nSize: %lu\n", vm->token_buffer, id_size);
+    debug_print("NUM: %s\nSize: %lu", vm->token_buffer, id_size);
     return;
   }
 
   mvm_reset_switch(vm);
 
-  debug_print("NUM failed\n");
+  debug_print("NUM: Failed");
   return;
   
 }
@@ -221,7 +260,7 @@ void vm_sr_inst(mvm_t *vm) {
   char *end;
   skip_whitespace(s);
   if (**s != '\'') {
-    debug_print("SR failed\n");
+    debug_print("SR failed");
     mvm_reset_switch(vm);
     return;
   }
@@ -233,18 +272,19 @@ void vm_sr_inst(mvm_t *vm) {
     id_size++;
     (*s)--;
     
-    memset(vm->token_buffer, 0, MAX_TOKEN_BUFFER_SIZE);
+
+    clear_token_buffer(vm);
     // Copy the string quotes too.
     strncpy(vm->token_buffer, *s, id_size + 1);
     mvm_advance_input_N(vm, id_size + 1);
     mvm_set_switch(vm);
-    debug_print("SR: %s\nSize: %lu\n", vm->token_buffer, id_size);
+    debug_print("SR: %s\nSize: %lu", vm->token_buffer, id_size);
     return;
   }
 
   mvm_reset_switch(vm);
 
-  debug_print("SR failed\n");
+  debug_print("SR failed");
   return;
   
 }
@@ -260,12 +300,14 @@ void vm_end_inst(mvm_t *vm) {
 
 void vm_b_inst(mvm_t *vm) {
   if (!vm) {
-     eprintf("VM_B_INST: Null pointer received.");
+    eprintf("VM_B_INST: Null pointer received.");
   }  
   uint16_t dest;
-  uint8_t b1 = next_byte(vm);
-  uint8_t b2 = next_byte(vm);  
-  dest = b1 + (b2 << 8);
+  uint8_t low = current_byte(vm);
+  uint8_t high = next_byte(vm);  
+  dest = low + (high << 8);
+  debug_print("B: Branching to %d", dest);
+
   vm->ip = dest;
   if (vm->ip > vm->code_size) {
     eprintf("VM_B_INST: Out of bounds.");
@@ -284,17 +326,20 @@ void vm_be_inst(mvm_t *vm) {
 
 void vm_bt_inst(mvm_t *vm) {
   if (!vm) {
-     eprintf("VM_BT_INST: Null pointer received.");
+    eprintf("VM_BT_INST: Null pointer received.");
   }  
   uint16_t dest;
-  uint8_t b1 = next_byte(vm);
-  uint8_t b2 = next_byte(vm);  
-  dest = b1 + (b2 << 8);
+  uint8_t low = current_byte(vm);
+  uint8_t high = next_byte(vm);  
+  dest = low + (high << 8);
   if (dest >= vm->code_size) {
     eprintf("VM_BT_INST: Out of bounds.");
   }
+
+  next_byte(vm);
   
   if (vm->the_switch) {
+    debug_print("BT: Branching to %d", dest);
     vm->ip = dest;
   }
   
@@ -302,17 +347,19 @@ void vm_bt_inst(mvm_t *vm) {
 
 void vm_bf_inst(mvm_t *vm) {
   if (!vm) {
-     eprintf("VM_BF_INST: Null pointer received.");
+    eprintf("VM_BF_INST: Null pointer received.");
   }  
   uint16_t dest;
-  uint8_t b1 = next_byte(vm);
-  uint8_t b2 = next_byte(vm);  
-  dest = b1 + (b2 << 8);
+  uint8_t low = current_byte(vm);
+  uint8_t high = next_byte(vm);  
+  dest = low + (high << 8);
   if (dest >= vm->code_size) {
     eprintf("VM_BF_INST: Out of bounds.");
   }
-  
-  if (vm->the_switch) {
+
+  next_byte(vm);
+  if (!vm->the_switch) {
+    debug_print("BF: Branching to %d", dest);
     vm->ip = dest;
   }
   
@@ -320,25 +367,26 @@ void vm_bf_inst(mvm_t *vm) {
 
 void vm_cll_inst(mvm_t *vm) {
   if (!vm) {
-     eprintf("VM_CLL_INST: Null pointer received.");
+    eprintf("VM_CLL_INST: Null pointer received.");
   }
   uint16_t call_dest;
-  uint8_t b1 = next_byte(vm);
-  uint8_t b2 = next_byte(vm);  
-  call_dest = b1 + (b2 << 8);
+  uint8_t low = current_byte(vm);
+  uint8_t high = next_byte(vm);  
+  call_dest = low + (high << 8);
   if (call_dest >= vm->code_size) {
     eprintf("VM_CLL_INST: Out of bounds.");
   }
   uint8_t sp = vm->stack_pointer;
-  debug_print("VM_CLL: Stack at %d\n", sp);
-  debug_print("VM_CLL: Calling %d\n", call_dest);  
+  debug_print("VM_CLL: Stack at %d", sp);
+  debug_print("VM_CLL: Calling %d", call_dest);  
   if (sp >= 255) {
     eprintf("VM_CLL_INST: Stack overflow.");
   }
   vm->stack[sp].label1 = 0;
   vm->stack[sp].label2 = 0;
-  vm->stack[sp].return_address = vm->ip;
+  vm->stack[sp].return_address = vm->ip + 1;
   vm->stack_pointer++;
+  vm->stack_empty = false;
     
   vm->ip = call_dest;
   
@@ -346,14 +394,13 @@ void vm_cll_inst(mvm_t *vm) {
 
 void vm_r_inst(mvm_t *vm) {
   if (!vm) {
-     eprintf("VM_R_INST: Null pointer received.");
+    eprintf("VM_R_INST: Null pointer received.");
   }
   
   uint8_t sp = vm->stack_pointer;
   uint16_t return_dest = vm->stack[sp].return_address;
-  debug_print("VM_R: Stack at %d\n", sp);
-  debug_print("VM_R: Returning to %d\n", return_dest);
-  if (sp == 0) {
+  debug_print("R: Returning to %d", return_dest);
+  if (vm->stack_empty) {
     eprintf("VM_R_INST: Stack underflow.");
   }
   
@@ -361,15 +408,19 @@ void vm_r_inst(mvm_t *vm) {
   if (return_dest >= vm->code_size) {
     eprintf("VM_R_INST: Out of bounds.");
   }
-  vm->stack_pointer--;
-    
+  if (sp > 0) {
+    vm->stack_pointer--;
+  } else {
+    vm->stack_empty = true;
+  }
+  
   vm->ip = return_dest;
   
 }
 
 void vm_gn1_inst(mvm_t *vm) {
   if (!vm) {
-     eprintf("VM_GN1_INST: Null pointer received.");
+    eprintf("VM_GN1_INST: Null pointer received.");
   }
   uint8_t sp = vm->stack_pointer;
   vm->stack[sp].label1++;
@@ -379,7 +430,7 @@ void vm_gn1_inst(mvm_t *vm) {
 
 void vm_gn2_inst(mvm_t *vm) {
   if (!vm) {
-     eprintf("VM_GN2_INST: Null pointer received.");
+    eprintf("VM_GN2_INST: Null pointer received.");
   }
   uint8_t sp = vm->stack_pointer;
   vm->stack[sp].label2++;
@@ -388,21 +439,21 @@ void vm_gn2_inst(mvm_t *vm) {
 
 void install_opcodes(mvm_t *vm) {
   vm->opcodes[TST] = vm_tst_inst;
-  vm->opcodes[ID] = vm_id_inst;
+  vm->opcodes[ID]  = vm_id_inst;
   vm->opcodes[NUM] = vm_num_inst;
-  vm->opcodes[SR] = vm_sr_inst;
+  vm->opcodes[SR]  = vm_sr_inst;
   vm->opcodes[CLL] = vm_cll_inst;
-  vm->opcodes[R] = vm_r_inst;
+  vm->opcodes[R]   = vm_r_inst;
   vm->opcodes[SET] = vm_set_inst;
-  vm->opcodes[B] = vm_b_inst;
-  vm->opcodes[BT] = vm_be_inst;
-  vm->opcodes[BF] = vm_be_inst;
-  vm->opcodes[BE] = vm_be_inst;
-  vm->opcodes[CL] = vm_lb_inst;
-  vm->opcodes[CI] = vm_ci_inst;
+  vm->opcodes[B]   = vm_b_inst;
+  vm->opcodes[BT]  = vm_bt_inst;
+  vm->opcodes[BF]  = vm_bf_inst;
+  vm->opcodes[BE]  = vm_be_inst;
+  vm->opcodes[CL]  = vm_cl_inst;
+  vm->opcodes[CI]  = vm_ci_inst;
   vm->opcodes[GN1] = vm_gn1_inst;
   vm->opcodes[GN2] = vm_gn2_inst;
-  vm->opcodes[LB] = vm_lb_inst;
+  vm->opcodes[LB]  = vm_lb_inst;
   vm->opcodes[OUT] = vm_out_inst;
   vm->opcodes[END] = vm_end_inst;
   return;
@@ -420,6 +471,7 @@ mvm_t *mvm_new(uint8_t *code, const char *input, uint16_t code_size) {
   // Install opcodes.
   install_opcodes(res);
   res->input_size = strlen(input);
+  res->stack_empty = true;
   strncpy(res->input_buffer, input, strlen(input));
   return res;
   
@@ -447,19 +499,21 @@ void mvm_run_N_instructions(mvm_t *vm, uint16_t max_instructions) {
   mvm_print_info(vm);
   opcode_implementation *current_instruction;
   for (uint16_t i = 0; i < max_instructions; i++) {
-    debug_print("Cycle: %d\nInstruction: %d\n", i, vm->code[vm->ip]);
     current_instruction = vm->opcodes[vm->code[vm->ip]];
     if (!current_instruction) {
       eprintf("Invalid instruction: %d", vm->code[vm->ip]);
     }
+    // Advance IP before executing
+    debug_print("Cycle: %d\nInstruction: %d", i, vm->code[vm->ip]);
+    if (DEBUG) { mvm_print_info(vm); }        
+    next_byte(vm);
     current_instruction(vm);
-    if (DEBUG) { mvm_print_info(vm); }
     if (vm->input_buffer_pointer == vm->input_size ||
         (1 + vm->ip) >= vm->code_size) {
       printf("VM execution done.\n");
       return;
     }
-    next_byte(vm);
+    
   }
 }
 
@@ -475,12 +529,14 @@ void mvm_print_info(mvm_t *vm) {
   if (!vm) {
     eprintf("MVM_PRINT_INFO: Null pointer received.");
   }
-  printf("Code length: %d\n", vm->code_size);
-  printf("Input length: %d\n", vm->input_size);
+  // printf("Code length: %d\n", vm->code_size);
+  // printf("Input length: %d\n", vm->input_size);
   printf("Instruction pointer: %hu\n", vm->ip);
+  printf("Rest of input: >%s", vm->input_buffer + vm->input_buffer_pointer);
   printf("Input buffer pointer: %hu\n", vm->input_buffer_pointer);
-  printf("Output buffer pointer: %hu\n", vm->output_buffer_pointer);
-  printf("Stack pointer: %d\n", vm->stack_pointer);
+  // printf("Output buffer pointer: %hu\n", vm->output_buffer_pointer);
+  printf("Stack pointer: %d and %sempty\n", vm->stack_pointer, vm->stack_empty ? "" : "not ");
+  printf("Switch: %d\n", vm->the_switch);
 
   
   puts("");

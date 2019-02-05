@@ -1,0 +1,1079 @@
+\documentclass[notitlepage,twocolumn]{report}
+\usepackage[left=1in, right=1in, top=1in, bottom=1in]{geometry}
+\usepackage{endnotes}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\title{META II \\ \large A Syntax-Oriented Compiler Writing Language}
+\author{D. V. Schorre\footnote{Transcribed from http://www.ibm-1401.info/Meta-II-schorre.pdf in January 2017 by Jacob Mithcell.}}
+\date{}
+
+\begin{document}
+\twocolumn
+\maketitle
+
+
+META II is a compiler writing language which consists of syntax
+equations resembling Backus normal form and into which instructions to
+output assembly commands are inserted. Compilers have been written in
+this language for VALGOL I and VALGOL II. The former is a simple
+algebraic language designed for the purpose of illustrating META
+II. The latter contains a fairly large subset of ALGOL 60.
+
+The method of writing compilers which is given in detail in the paper
+may be explained briefly as follows. Each syntax equation is
+translated into a recursive subroutine which tests the input string
+for a particular phrase structure, and deletes it if found. Backup is
+avoided by the extensive use of factoring in the syntax equations. For
+each source language, an interpreter is written and programs are
+compiled into that interpretive language.
+
+META II is not intended as a standard language which everyone will use
+to write compilers. Rather, it is an example of a simple working
+language which can give one a good start in designing a
+compiler-writing compiler suited to his own needs. Indeed, the META II
+compiler is written in its own language, thus lending itself to
+modification.
+
+\section*{History}
+
+The basic ideas behind META II were described in a series of three
+papers by Schmidt,\endnote{TODO} Metcalf,\endnote{TODO} and
+Schorre.\endnote{TODO} These papers were presented at the 1963
+National A.C.M. Convention in Denver, and represented the activity of
+the Working Group on Syntax-Directed Compilers of Los Angeles
+SIGPLAN. The methods used by that group are similar to those of
+Glennie and Conway, but differ in one important respect. Both of these
+researchers expressed syntax in the form of diagrams, which they
+subsequently coded for use on a computer. In the case of META II, the
+syntax is input to the computer in a notation resembling Backus normal
+form. The method of syntax analysis discussed in this paper is
+entirely different from the one used by Irons\endnote{TODO} and
+Bastian.\endnote{TODO} All of these methods can be traced back to the
+mathematical study of natural languages, as described by
+Chomsky.\endnote{TODO}
+
+\section*{Syntax Notation}
+
+The notation used here is similar to the meta language of the ALGOL 60
+report. Probably the main difference is that this notation can be
+keypunched. \underline{Symbols} in the target language are represented
+as strings of characters, surrounded by
+quotes. \underline{Metalinguistic variables} have the same form as
+identifiers in ALGOL, viz., a letter followed by a sequence of letters
+or digits. Items are written consecutively to indicate
+\underline{concatenation} and separated by a slash to indicate
+alternation. Each equation ends with a semicolon which, due to
+keypunch limitations, is represented by a period followed by a
+comma. An example of a syntax equation is:
+
+\begin{verbatim}
+LOGICALVALUE = '.TRUE' / '.FALSE' .,
+\end{verbatim}
+
+In the versions of ALGOL described in this paper the symbols which are
+usually printed in boldface type will begin with periods, for example:
+
+\begin{verbatim}
+.PROCEDURE .TRUE .IF
+\end{verbatim}
+
+To indicate that a syntactic element is \underline{optional}, it may
+be put in alternation with the word \texttt{.EMPTY}. For example:
+
+\begin{verbatim}
+SUBSECONDARY = '*' PRIMARY / .EMPTY .,
+SECONDARY = PRIMARY SUBSECONDARY .,
+\end{verbatim}
+
+By factoring, these two equations can be written as a single equation.
+
+\begin{verbatim}
+SECONDARY = PRIMARY('*' PRIMARY / .EMPTY) .,
+\end{verbatim}
+
+Built into the META II language is the ability to recognize three
+basic symbols which are:
+
+\begin{enumerate}
+\item Identifiers -- represented by \texttt{.ID},
+\item Strings -- represented by \texttt{.STRING},
+\item Numbers -- represented by \texttt{.NUMBER}.
+\end{enumerate}
+
+The definition of identifier is the same in META II as in ALGOL, viz.,
+a letter followed by a sequence of letters or digits. The definition
+of a string is changed because of the limited character set available
+on the usual keypunch. In ALGOL, strings are surrounded by opening and
+closing quotation marks, making it possible to have quotes within a
+string. The single quotation mark on the keypunch is unique, imposing
+the restriction that a string in quotes can contain no other quotation
+marks.
+
+The definition of number has been radically changed. The reason for
+this is to cut down on the space required by the machine subroutine
+which recognizes numbers. A number is considered to be a string of
+digits which may include imbedded periods, but may not begin or end
+with a period; moreover, periods may not be adjacent. The use of the
+subscript 10 has been eliminated.
+
+Now we have enough of the syntax defining features of the META II
+language so that we can consider a simple example in some detail.
+
+The example given here is a set of four syntax equations for defining
+a very limited set of algebraic expressions. The two operators,
+addition and multiplication, will be represented by \texttt{+} and
+\texttt{*} respectively. Multiplication takes precedence over
+addition; otherwise precedence is indicated by parentheses. Some
+examples are:
+
+\begin{verbatim}
+A
+A + B
+A + B * C
+(A + B) * C
+\end{verbatim}
+
+The syntax equations which define this class of expressions are as
+follows:
+
+\begin{verbatim}
+EX3 = .ID / '(' EX1 ')' .,
+EX2 = EX3 ('*' EX2 / .EMPTY) .,
+EX1 = EX2 ('+' EX1 / .EMPTY) .,
+\end{verbatim}
+
+\texttt{EX} is an abbreviation for expression. The last equation,
+which defines an expression of order 1, is considered the main
+equation. An expression of order 3 is defined as an identifier or an
+open parenthesis followed by an expression of order 1 followed by a
+closed parenthesis. An expression of order 2 is defined as an
+expression of order 3, which may be followed by a star which is
+followed by an expression of order 2. An expression of order 1 is
+defined as an expression of order 2, which may be followed by a plus
+which is followed by an expression of order 1.
+
+Although sequences can be defined recursively, it is more convenient
+and efficient to have a special operator for this purpose. For
+example, we can define a sequence of the letter \texttt{A} as follows:
+
+\begin{verbatim}
+SEQA = $ 'A' .,
+\end{verbatim}
+
+The equations given previously are rewritten using the sequence
+operator as follows:
+
+\begin{verbatim}
+EX3 = .ID / '(' EX1 ')' .,
+EX2 = EX3 $ ('*' EX3) .,
+EX1 = EX2 $ ('+' EX2) .,
+\end{verbatim}
+
+
+\section*{Output}
+
+Up to this point we have considered the notation in META II which
+describes object language syntax. To produce a compiler, output
+commands are inserted into the syntax equations. Output from a
+compiler written in META II is always in an assembly language, but not
+in the assembly language for 1401. It is for an interpreter, such as
+the interpreter I call the META II machine, which is used for all
+compilers, or the interpreters I call the VALGOL I and VALGOL II
+machines, which obviously are used with their respective source
+languages. Each machine requires its own assembler, but the main
+difference between assemblers is the operation code table. Constant
+codes and declarations may also be different. These assemblers all
+have the same format, which is shown below.
+
+\begin{verbatim}
+LABEL      CODE      ADDRESS
+1-   -6    8-  -10   12-             -70
+\end{verbatim}
+
+An assembly language record contains either a label or an op code of
+up to 3 characters, but never both. A label begins in column 1 and may
+extend as far as column 70. If a record contains an op code, then
+column 1 must be blank. Thus labels may be any length and are not
+attached to instructions, but occur between instructions.
+
+To produce output beginning in the op code field we write
+\texttt{.OUT} and then surround the information to be reproduced with
+parentheses. A string is used for literal output and an asterisk to
+output the special symbol just found in the input. This is illustrated
+as follows:
+
+\begin{verbatim}
+EX3 = .ID .OUT('LD ' *) / '(' EX1 ')' .,
+EX2 = EX3 $ ('*' EX3 .OUT('MLT')) .,
+EX1 = EX2 $ ('+' EX2 .OUT('ADD')) .,
+\end{verbatim}
+
+To cause output in the label field we write \texttt{.LABEL} followed
+by the item to be output. For example, if we want to test for an
+identifier and output it in the label field we write:
+
+\begin{verbatim}
+.ID .LABEL *
+\end{verbatim}
+
+The META II compiler can generate labels of the form A01, A02, A03,
+\ldots A99, B01, \ldots. To cause such a label to be generated, one
+uses \texttt{*1} or \texttt{*2}. The first time \texttt{*1} is
+referred to in any syntax equation, a label will be generated and
+assigned to it. This same label is output whenever \texttt{*1} is
+referred to within that execution of the equation. The symbol
+\texttt{*2} works in the same way. Thus a maximum of two different
+labels may be generated for each execution of any equation. Repeated
+executions, whether recursive or externally initiated, result in a
+continued sequence of generated labels. Thus all syntax equations
+contribute to the one sequence. A typical example in which labels are
+generated for branch commands is now given.
+
+\begin{verbatim}
+IFSTATEMENT = '.IF' EXP '.THEN' .OUT('BFP' *1)
+     STATEMENT '.ELSE' .OUT('B ' *2) .LABEL *1
+     STATEMENT .LABEL *2 .,
+\end{verbatim}
+
+The op codes \texttt{BFP} and \texttt{B} are orders of the VALGOL I
+machine, and stand for ``branch false and pop'' and ``branch''
+respectively. The equation also contians references to two other
+equations which are not explicitly given, viz., \texttt{EXP} and
+\texttt{STATEMENT}.
+
+
+\section*{VALGOL I -- A Simple Compiler Written in META II}
+
+Now we are ready for an example of a compiler written in META
+II. VALGOL I is an extremely simple language, based on ALGOL 60, which
+has been designed to illustrate the META II compiler.
+
+The basic information about VALGOL I is given in figure 1 (the VALGOL
+I compiler written in META II) and figure 2 (order list of the VALGOL
+I machine). A sample program is given in figure 3. After each line of
+the program, the VALGOL I commands which the compiler produces from
+that line are shown, as well as the absolute interpretive language
+produced by the assembler. Figure 4 is output from the sample
+program. Let us study the compiler writtein in META II (figure 1) in
+more detail.
+
+The identifier \texttt{PROGRAM} on the first line indicates that this
+is the main equation, and that control goes there first. The equation
+for \texttt{PRIMARY} is similar to that of \texttt{EX3} in our
+previous example, but here numbers are recognized and reproduced with
+a ``load literal'' command. \texttt{TERM} is what was previously
+\texttt{EX2}; and \texttt{EXP1} what was previously \texttt{EX1}
+except for recognizing minus for subtraction. The equation
+\texttt{EXP} defines the relational operator ``equal'', which produces
+a value of 0 or 1 by making a comparison. Notice that this is handled
+just like the arithmetic operators but with lower precedence. The
+conditional branch commands, ``branch true and pop'' and ``branch
+false and pop'', which are produced by the equations definining
+\texttt{UNTILST} and \texttt{CONDITIONALST} respectively, will test
+the top item in the stack and branch accordingly.
+
+The ``assignment statement'' defined by the equation for
+\texttt{ASSIGNST} is reversed from the convention in ALGOL 60, i.e.,
+the location into which the computed value is to be stored is on the
+right. Notice also that the equal sign is used for the assignment
+statement and that period equal (\texttt{.=}) is used for the relation
+discussed above. This is because assignment statements are more
+numerous in typical programs than equal compares, and so the simpler
+representation is chosen for the more frequently occurring.
+
+The omission of statement labels from the VALGOL I and VALGOL II seems
+strange to most programmers. This was not done because of any
+difficulty in their implementation, but because of a dislike for
+statement labels on the part of the author. I have programmed for
+several years without using a single label, so I know that they are
+superfluous from a practical, as well as from a theoretical,
+standpoint. Nevertheless, it would be too much of a digression to try
+to justify this point here. The ``until statement'' has been added to
+facilitate writing loops without labels.
+
+The ``conditional'' statement is similar to one in ALGOL 60, but here
+the ``else'' clause is required.
+
+The equation for ``input/output'', \texttt{IOST}, involves two
+commands, ``edit'' and ``print''. The words \texttt{EDIT} and
+\texttt{PRINT} do no begin with periods so that they will look like
+subroutines written in code. ``\texttt{EDIT}'' copies the given string
+into the print area, with the first character in the print position
+which is computed from the given expression. ``\texttt{PRINT}'' will
+print the current contents of the print area and then clear it to
+blanks. Giving a print command without previous edit commands results
+in writing a blank line.
+
+\texttt{IDSEQ1} and \texttt{IDSEQ} are given to simplify the syntax
+equation for \texttt{DEC} (declaration). Notice in the definition of
+\texttt{DEC} that a branch is given around the data.
+
+From the definition of \texttt{BLOCK} it can be seen that what is
+considered a compound statement in ALGOL 60 is, in VALGOL I, a special
+case of a block which has no declaration.
+
+In the definition of a statement, the test for an \texttt{IOST}
+precedes that for an \texttt{ASSIGNST}. This is necessary, because if
+ithis were not done the words \texttt{PRINT} and \texttt{EDIT} would
+be mistaken as identifiers and the compiler would try to translate
+``input/output'' statements as if they were ``assignment'' statements.
+
+Notice that a \texttt{PROGRAM} is a block and that a standard set of
+commands is output after each program. The ``halt'' command causes the
+machine to stop on reaching the end of the outermost block, which is
+the program. The operation code \texttt{SP} is generated after the
+``halt'' command. This is a completely 1401-oriented code, which
+serves to set a word mark at the end of the program. It would not be
+used if VALGOL I were implemented on a fixed word-length machine.
+
+
+\section*{How the META II Compiler Was Written}
+
+Now we come to the most interesting part of this project, and consider
+how the META II compiler was written in its own language. The
+interpreter called the META II machine is not a much longer 1401
+program than the VALGOL I machine. The syntax equations for META II
+(figure 5) are fewer in number than those for the VALGOL I machine
+(figure 1).
+
+The META II compiler, which is an interpretive program for the META II
+machine, takes the syntax equations given in figure 5 and produces an
+assembly language version of this same interpretive program. Of
+course, to get this started, I had to write the first compiler-writing
+compiler by hand. After the program was running, it could produce the
+same program as written by hand. Someone always asks if the compiler
+really produced exactly the program I had written by hand and I have
+to say that it was ``almost'' the same program. I followed the syntax
+equations and tried to write just what the compiler was going to
+produce. Unfortunately I forgot one of the redundant instructions, so
+the results were not quite the same. Of course, when the first
+machine-produced compiler compiled itself the second time, it
+reproduced itself exactly.
+
+The compiler originally written by hand was for a language called META
+I. This was used to implement the improved compiler for META
+II. Sometimes when I wanted to change the metalanguage, I could not
+describe the new metalanguage directly in the current
+metalanguage. Then an intermediate language was created--one which
+could be described in the currently language and in which the new
+language could be described. I thought that it might sometimes be
+necessary to modify the assembly language output, but it seems that it
+is always possible to avoid this with the intermediate language.
+
+The order list of the META II machine is given in figure 6.
+
+All subroutines in META II programs are recursive. When the program
+enters a subroutine a stack is pushed down by three cells. One cell is
+for the exit address and the other two are for labels which may be
+generated during the execution of the subroutine. There is a switch
+which may be set or reset by the instructions which refer to the input
+string, and this is the switch referred to by the conditional branch
+commands.
+
+The first thing in any META II machine program is the address of the
+first instruction. During the initialization for the interpreter, this
+address is placed into the instruction counter.
+
+
+\section*{VALGOL II Written in META II}
+
+VALGOL II is an expansion of VALGOL I, and serves as an illustrction
+of a fairly elaborate programming language implemented in the META II
+system. There are several features in the VALGOL II machine which were
+not present in the VALGOL I machine, and which require some
+explanation. In the VALGOL II machine, addresses as well as numbers
+are put in the stack. They are marked appropriately so they can be
+distinguished at execution time.
+
+The main reason that addresses are allowed in the stack is that, in
+the case of a subscripted variable, an address is the result of a
+computation. In an assignment statement each left member is compiled
+into a sequence of code which leaves an address on top of the
+stack. This is done for simple variables as well as subscripted
+variables, because the philosophy of this compiler writing system has
+been to compile everything in the most general way. A variable, simple
+or subscripted, is always compiled into a sequence of instructions
+which leaves an address on top of the stack. The address is not
+replaced by its contents until the actual value of the variable is
+needed, as in an arithmetic expression.
+
+A formal parameter of a procedure is stored either as an address or as
+a value which is computed when the procedure is called. It is up to
+the load command to go through any number of indirect address in order
+place the address of a number on the stack. An argument of a procedure
+is always an algebraic expression. In case this expression is a
+variable, the value of the formal parameter will be an address
+computed upon entering the procedure; otherwise, the value of the
+formal parameter will be a number computed upon entering the
+procedure.
+
+The operation of a load command is now described. It causes the given
+address to be put on top of the stack. If the content of this top item
+happens to be another address, then it is replaced by that
+address. This continues until the top item on the stack is the address
+of something which is not an address. This allows for formal
+parameters to refer to other formal parameters at any depth.
+
+No distinction is made between integer and real numbers. An integer is
+just a real number whose digits right of the decimal point are
+zero. Variables initially have a value called ``undefined'', and any
+attempt to use this value will be indicated as an error.
+
+An assignment statement consists of any number of left parts followed
+by a right part. For each left part there is compiled a sequence of
+commands which puts an address on top of the stack. The right part is
+compiled into a sequence of instructions which leaves on top of the
+stack either a number of the address of a number. Following the
+instruction for the right part there is a sequence of store commands,
+one for each left part. The first command of this sequence is ``save
+and store'', and the rest are ``plain'' store commands. The ``save and
+store'' puts the number which is on top of the stack (or which is
+referred to by the address on top of the stack) into a register called
+\texttt{SAVE}. It then stores the contents of \texttt{SAVE} in the
+address which is held in the next to top position of the
+stack. Finally it pops the top two items, which it has used, out of
+the stack. The number, however, remains in \texttt{SAVE} for use by
+the following store commands. Most assignment statements have only one
+part left, so ``plain'' store commands are seldom produced, with the
+result that the number put in \texttt{SAVE} is seldom used again.
+
+% TODO: Illustration 1
+% TODO: Illustration 2
+
+The method for calling a procedure can be explained by reference to
+illustrations 1 and 2. The arguments which are in the stack are moved
+to their place at the top of the procedure. If the number of arguments
+in the stack does not correspond to the number of arguments in the
+procedure, an error is indicated. The ``flag'' in the stack works like
+this. In the VALGOL II machine there is a flag register. To set a flag
+in the stack, the contents of this register is put on top of the
+stack, then the address of the word above the top of the stack is put
+into the flag register. Initially, and whenever there are no flags in
+the stack, the flag register contains blanks. At other times it
+contains the address of the word in the stack which is just above the
+uppermost flag. Just before a call instruction is executed, the flag
+register contians the address of the word in the stack which is two
+above the word containing the address of the procedure to be
+executed. The call instruction picks up the arguments from the stack,
+beginning with the one stored just above the flag, and continuing to
+the top of the stack. Arguments are moved into the appropriate places
+at the top of the procedure being called. An error message is given if
+the number of arguments in the stack does not correspond to the number
+of places in the procedure. Finally the old flag address, which is
+just below the procedure address in the stack, is put in the flag
+register. The exit address replaces the address of the procedure in
+the stack, and all the arguments, as well as the flag, are popped
+out. There are just two op codes which affect the flag register. The
+code ``load flag'' puts a flag into the stack, and the code ``call''
+takes one out.
+
+The library function ``\texttt{WHOLE}'' truncates a real number. It
+does not convert a real number to an integer, because no distinction
+is made between them. It is substituted for the recommended function
+``\texttt{ENTIER}'' primarily because truncation takes fewer machines
+instructions to implement. Also, truncation seems to be used more
+frequently. The procedure \texttt{ENTIER} can be defined in VALGOL II
+as follows:
+
+\begin{verbatim}
+.PROCEDURE ENTER(X) .,
+   .IF O .L= X .THEN WHOLE (X) .ELSE
+   .IF WHOLE(X) = X .THEN X .ELSE
+   WHOLE(X) -1
+\end{verbatim}
+
+The ``for statement'' in VALGOL II is not the same as it is in
+ALGOL. Exactly one list element is required. The ``step .. until''
+portion of the element is mandatory, but the ``while'' portion may be
+added to terminate the loop immediately upon some condition. The
+iteration continues so long as the value of the variable is less than
+or equal to the maximum, irrespective of the sign of the
+increment. Illustration 3 is an example of a typical ``for
+statement''. A flow chart of this statement is given in illustration
+4.
+
+% TODO: Illustration 3
+% TODO: Illustration 4
+
+Figure 7 is a listing of the VALGOL II compiler written in META
+II. Figure 8 gives the or-order list of the VALGOL II machine. A
+sample program to take the determinant is given in figure 9.
+
+
+\section*{Backup vs. No Backup}
+
+Suppose that, upon entry to a recursive subroutine, which represents
+some syntax equation, the position of the input and output are
+saved. When some non-first term of a component is not found, the
+compiler does not have to stop with an indication of a syntax
+error. It can back-up the input and output and return false. The
+advantages of backup are as follows:
+
+\begin{enumerate}
+\item It is possible to describe languages, using backup, which cannot
+  be described without backup.
+\item Even for a language which can be described without backup, the
+  syntax equations can often be simplified when backup is allowed.
+\end{enumerate}
+
+The advantages claimed for non-backup are as follows:
+
+\begin{enumerate}
+\item Syntax analysis is faster.
+\item It is possible to tell whether syntax equations will work just
+  by examining them, without following through numerous examples.
+\end{enumerate}
+
+The fact that rather sophisticated languages such as ALGOL and COBOL
+can be implemented without backup is pointed out by various people,
+including Conway,\endnote{TODO} and they are aware of the speed
+advantages of so doing. I have seen no mention of the second advantage
+of no-backup, so I will explain this in more detail.
+
+Basically one writes alternatives in which each term begins with a
+different symbol. Then it is not possible for the compiler to go down
+the wrong path. This is made more complicated because of the use of
+``\texttt{.EMPTY}''. An optional item can never be followed by
+something that begins with the same symbol it begins with.
+
+The method described above is not the only way in which backup can be
+handled. Variations are worth considering, as a way may be found to
+have the advantages of both backup and no-backup.
+
+
+\section*{Further Development of META Languages}
+
+As mentioned earlier, META II is not presented as a standard language,
+but as a point of departure from which a user may develop his own META
+language. The term ``META Language,'' with ``META'' in capital
+letters, is used to denote any compiler-writing language so developed.
+
+The language which Schmidt\endnote{TODO} implemented on the PDP-1 was
+based on META I. He has now implemented an improved version of this
+language for a Beckman machine.
+
+Rutman\endnote{TODO} has implemented LOGIK, a compiler for bit-time
+simulation, on the 7090. He uses a META language to compile Boolean
+expressions into efficient machine code. Schneider and
+Johnson\endnote{TODO} have implemented META 3 on the IBM 7094, with
+the goal of producing an ALGOL compiler which generates efficient
+machine code. They are planning a META language which will be suitable
+for any block structured language. To this compiler-writing language
+they give the name META 4 (pronounced metaphor).
+
+
+\theendnotes
+
+\onecolumn
+
+\begin{figure}
+  \caption{The VALGOL I compiler written in META II Language}
+\begin{verbatim}
+.SYNTAX PROGRAM
+
+PRIMARY = .ID .OUT('LD ' *) /
+     .NUMBER .OUT('LDL' *) /
+     '(' EXP ')' .,
+
+TERM = PRIMARY $('*' PRIMARY .OUT('MLT') ) .,
+
+EXP1 = TERM $('+' TERM .OUT('ADD') /
+     '-' TERM .OUT('SUB') ) .,
+
+EXP = EXP1 ( '.=' EXP1 .OUT('EQU') / .EMPTY) .,
+
+ASSIGNST = EXP '=' .ID .OUT('ST ' *) .,
+
+UNTILST = '.UNTIL' .LABEL *1 EXP '.DO' .OUT('BTP' *2)
+     ST .OUT('B  ' *1) .LABEL *2 .,
+
+CONDITIONALST = '.IF' EXP '.THEN' .OUT('BFP' *1)
+     ST '.ELSE' .OUT('B  ' *2) .LABEL *1
+     ST .LABEL *2 .,
+
+IOST = 'EDIT' '(' EXP ',' .STRING
+     .OUT('EDT' *) ')' /
+     'PRINT' .OUT('PNT') .,
+
+IDSEQ1 = .ID .LABEL * .OUT('BLK 1') .,
+
+IDSEQ = IDSEQ1 $(',' IDSEQ1) .,
+
+DEC = '.REAL' .OUT('B  ' *1) IDSEQ .LABEL *1 .,
+
+BLOCK = '.BEGIN' (DEC '.,' / .EMPTY)
+     ST $('.,' ST) '.END' .,
+
+ST = IOST / ASSIGNST / UNTILST /
+     CONDITIONALST / BLOCK .,
+
+PROGRAM = BLOCK .OUT('HLT')
+     .OUT('SP  1') .OUT('END') .,
+
+.END
+\end{verbatim}
+\end{figure}
+
+\begin{figure}
+\caption{Order List of the VALGOL I Machine}
+\begin{center}
+MACHINE CODES
+\end{center}
+\begin{tabular}{lllp{7cm}}
+  LD & AAA & LOAD & Put the contents of the address AAA on top of the
+                    stack. \\
+  LDL & NUMBER & LOAD LITERAL & Put the given number on top of the
+                                stack. \\
+  ST & AAA & STORE & Store the number which is on top of the stack
+                     into the address AAA and pop up the stack. \\
+  ADD & & ADD & Replace the two numbers which are on top of the stack
+                with their sum. \\
+  SUB & & SUBTRACT & Subtract the number which is on top of the stack
+                     from the number which is next to the top, then
+                     replace them by this difference. \\
+  MLT & & MULTIPLY & Replace the two numbers which are on top of the
+                     stack with their product. \\
+  EQU & & EQUAL & Compare the two numbers on top of the stack. Replace
+                  them by the integer 1, if they are equal, or by the
+                  integer 0, if they are unequal. \\
+  B & AAA & BRANCH & Branch to the address AAA. \\
+  BFP & AAA & BRANCH FALSE AND POP & Branch to the address AAA if the
+                                     top term in the stack is the
+                                     integer 0. Otherwise, continue in
+                                     sequence. In either case, pop up
+                                     the stack. \\
+  BTP & AAA & BRANCH TRUE AND POP & Branch to the address AAA if the
+                                    top term in the stack is not the
+                                    integer 0. Otherwise, continue in
+                                    sequence. In either case, pop up
+                                    the stack. \\
+  EDT & STRING & EDIT & Round the number which is on top of the stack
+                        to the nearest integer n. Move the given
+                        string into the print area so that its first
+                        character falls on print position n. In case
+                        this would cause characters to fall outside
+                        the print area, no movement takes place. \\
+  PNT & & PRINT & Print a line, then space and clear the print
+                  area. \\
+  HLT & & HALT & Halt. \\
+\end{tabular}
+\begin{center}
+CONSTANT AND CONTROL CODES
+\end{center}
+\begin{tabular}{lllp{7cm}}
+  SP & N & SPACE & N = 1--9. Constant code producing N blank
+                   spaces. \\
+  BLK & NNN & BLOCK & Produces a block of NNN eight character
+                      words. \\
+  END & & END & Denotes the end of the program. \\
+\end{tabular}
+\end{figure}
+
+
+\begin{figure}
+\caption{A program as compiled for the VALGOL I machine}
+\label{valgol-1-example}
+\begin{verbatim}
+.BEGIN
+.REAL X ., 0 = X .,
+              B   A01                             0000 G 0012
+       X                                          0004
+              BLK 001                             0004
+       A01                                        0012
+              LDL 0                               0012 A
+              ST  X                               0021 B 0004
+.UNTIL X .= 3 .DO .BEGIN
+       A02                                        0025
+              LD  X                               0025 0 0004
+              LDL 3                               0029 A
+              EQU                                 0038 F
+              BTP A03                             0039 K 0097
+     EDIT( X*X * 10 + 1, '*') ., PRINT ., X + 0.1 = X
+              LD  X                               0043 0 0004
+              LD  X                               0047 0 0004
+              MLT                                 0051 E
+              LDL 10                              0052 A
+              MLT                                 0061 E
+              LDL 1                               0062 A
+              ADD                                 0071 C
+              EDT 01'*'                           0072 I
+              PNT                                 0074 0
+              LD  X                               0075 0 0004
+              LDL 0.1                             0079 A
+              ADD                                 0088 C
+              ST  X                               0089 B 0004
+     .END
+              B   A02                             0093 G 0025
+       A03                                        0097
+.END
+              HLT                                 0097 J
+              SP  1                               0098
+              END                                 0099
+\end{verbatim}
+\end{figure}
+
+
+
+
+\begin{figure}
+\caption{Output from the VALGOL I program given in Figure \ref{valgol-1-example}}
+\begin{verbatim}
+*
+*
+*
+ *
+  *
+   *
+    *
+     *
+       *
+         *
+           *
+             *
+                *
+                   *
+                      *
+                         *
+                            *
+                               *
+                                   *
+                                       *
+                                           *
+                                               *
+                                                    *
+                                                         *
+                                                              *
+                                                                   *
+\end{verbatim}
+\end{figure}
+
+
+\begin{figure}
+\caption{The META II compiler written in its own language}
+\begin{verbatim}
+.SYNTAX PROGRAM
+
+OUT1 = '*1' .OUT('GN1') / '*2' .OUT('GN2') /
+'*' .OUT('CI') / .STRING .OUT('CL ' *).,
+
+OUTPUT = ('.OUT' '('
+$ OUT1 ')' / '.LABEL' .OUT('LB') OUT1) .OUT('OUT') .,
+
+EX3 = .ID .OUT ('CLL' *) / .STRING
+.OUT('TST' *) / '.ID' .OUT('ID') /
+'.NUMBER' .OUT('NUM') /
+'.STRING' .OUT('SR') / '(' EX1 ')' /
+'.EMPTY' .OUT('SET') /
+'$' .LABEL *1 EX3
+.OUT ('BT ' *1) .OUT('SET').,
+
+EX2 = (EX3 .OUT('BF ' *1) / OUTPUT)
+$(EX3 .OUT('BE') / OUTPUT)
+.LABEL *1 .,
+
+EX1 = EX2 $('/' .OUT('BT ' *1) EX2 )
+.LABEL *1 .,
+
+ST = .ID .LABEL * '=' EX1
+'.,' .OUT('R').,
+
+PROGRAM = '.SYNTAX' .ID .OUT('ADR' *)
+$ ST '.END' .OUT('END').,
+
+.END
+\end{verbatim}
+\end{figure}
+
+
+\begin{figure}[htb]
+  \caption{Order list of the META II machine}
+  \begin{subfigure}[b]{\textwidth}
+    \subcaption{MACHINE CODES}
+    \begin{tabular}{lllp{7cm}}
+      TST & STRING & TEST & After deleting initial blanks in the input
+                            string, compare it to the string given as
+                            argument. If the comparison is met, delete
+                            matched portion from the input and set
+                            switch. If not met, reset switch. \\
+      ID & & IDENTIFIER & After deleting initial blanks in the input
+                          string, test if it begins with an identifier,
+                          ie., a letter followed by a sequence of letters
+                          and/or digits. If so, delete the identifier and
+                          set switch. If not, reset switch. \\
+      NUM & & NUMBER & After deleting initial blanks in the input string,
+                       test if it begins with a number. a number is a
+                       string of digits which may contain imbedded
+                       periods, but may not begin or end with a
+                       period. moreover, no two periods may be next to one
+                       another. If a number is found, delete it and set
+                       switch. If not, reset switch. \\
+      SR & & STRING & After deleting initial blanks in the input string,
+                      test if it begins with a string, ie., a single quote
+                      followed by a sequence of any characters other than
+                      single quote followed by another single quote. If a
+                      string is found, delete it and set switch. if not,
+                      reset switch. \\
+      CLL & AAA & CALL & Enter the subroutine beginning in location
+                         AAA. If the top two terms of the stack are blank,
+                         push the stack down by one cell. Otherwise, push
+                         it down by three cells. Set a flag in the stack
+                         to indicate whether it has been pushed by one or
+                         three cells. This flag and the exit address go
+                         into the third cell. Clear the top two cells to
+                         blanks to indicate that they can accept addresses
+                         which may be generated within the subroutine. \\
+    \end{tabular}
+  \end{subfigure}
+\end{figure}
+\begin{figure}[htb]\ContinuedFloat
+  \begin{subfigure}[b]{\textwidth}
+    \begin{tabular}{lllp{7cm}}
+      R & & RETURN & Return to the exit address, popping up the stack by
+                     one or three cells according to the flag. If the
+                     stack is popped by only one cell, then clear the top
+                     two cells to blanks, because they were blank when the
+                     subroutine was entered. \\
+      SET & & SET & Set branch switch on. \\
+      B & AAA & BRANCH & Branch unconditionally to location AAA. \\
+      BT & AAA & BRANCH IF TRUE & Branch to location AAA if switch is
+                                  on. Otherwise, continue in sequence. \\
+      BF & AAA & BRANCH IF FALSE & Branch to location AAA if switch is
+                                   off. Otherwise, continue in
+                                   sequence. \\
+      BE & & BRANCH TO ERROR IF FALSE & Halt if switch is off. Otherwise,
+                                        continue in sequence. \\
+      CL & STRING & COPY LITERAL & Output the variable length string given
+                                   as the argument. A blank character will
+                                   be inserted in the output following the
+                                   string. \\
+      CI & & COPY INPUT & Output the last sequence of characters from the
+                          input string. This command may not function
+                          properly if the last command which could cause
+                          deletion failed to do so. \\
+      GN1 & & GENERATE 1 & This concerns the current label 1 cell, ie.,
+                           the next to top cell in the stack, which is
+                           either clear or contains a generated label. If
+                           clear, generate a label and put it into that
+                           cell. Whether the label has just been put into
+                           the cell or was already there, output
+                           it. Finally, insert a blank character in the
+                           output following the label. \\
+      GN2 & & GENERATE 2 & Same as GN1, except that it concerns the
+                           current label 2 cell, ie., the top cell in the
+                           stack. \\
+      LB & & LABEL & Set the output counter to card column 1. \\
+      OUT & & OUTPUT & Punch card and reset output counter to card column
+                       8. \\
+    \end{tabular}
+  \end{subfigure}
+  \begin{subfigure}[b]{\textwidth}
+    \subcaption{CONSTANT AND CONTROL CODES}
+    \begin{tabular}{lllp{7cm}}
+      ADR & IDENT & ADDRESS & Produces the address which is assigned to
+                              the given identifier as a constant. \\
+      END & & END & Denotes the end of the program. \\
+    \end{tabular}
+  \end{subfigure}
+\end{figure}
+
+
+\begin{figure}
+\caption{VALGOL II compiler written in META II}
+\begin{verbatim}
+.SYNTAX PROGRAM
+
+ARRAYPART = '(.' EXP '.)' .OUT('AIA') .,
+
+CALLPART = '(' .OUT('LDF') (EXP $(',' EXP) /
+     .EMPTY) ')' .OUT('CLL') .,
+
+VARIABLE = .ID .OUT('LD ' *) (ARRAYPART / .EMPTY) .,
+
+PRIMARY = 'WHOLE' '(' EXP ')' .OUT('WHL') /
+     .ID .OUT('LD ' *) (ARRAYPART / CALLPART / .EMPTY) /
+     '.TRUE' .OUT('SET') / '.FALSE' .OUT('RST') /
+     'O ' .OUT('RST') / '1 ' .OUT('SET') /
+     .NUMBER .OUT('LDL' *) /
+     '(' EXP ')' .,
+
+TERM = PRIMARY $ ('*' PRIMARY .OUT('MLT') /
+     '/' PRIMARY .OUT('DIV') /
+     './.' PRIMARY .OUT('DIV') .OUT('WHL') ) .,
+
+EXP2 = '-' TERM .OUT('NEG') /
+     '+' TERM / TERM .,
+
+EXP1 = EXP2 $('+' TERM .OUT('ADD') /
+     '-' TERM .OUT('SUB')) .,
+
+RELATION = EXP1 (
+     '.L=' EXP1 .OUT('LEQ') /
+     '.L' EXP1 .OUT('LES') /
+     '.=' EXP1 .OUT('EQU') /
+     '.-=' EXP1 .OUT('EQU') .OUT('NOT') /
+     '.G=' EXP1 .OUT('LES') .OUT('NOT') /
+     '.G' EXP1 .OUT('LEQ') .OUT('NOT') /
+     .EMPTY) .,
+
+BPRIMARY = '.-' RELATION .OUT('NOT') /
+     RELATION .,
+
+BTERM = BPRIMARY $ ('.,' .OUT('BF ' *1)
+     .OUT('POP') BPRIAMRY)
+     .LABEL *1 .,
+
+BEXP1 = BTERM $( '.V' .OUT('BT ' *1)
+     .OUT('POP') BTERM)
+     .LABEL *1 .,
+
+IMPLICATION1 = '.IMP' .OUT('NOT')
+     .OUT('BT ' *1) .OUT('POP')
+     BEXP1 .LABEL *1 .,
+
+IMPLICATION = BEXP1 $ IMPLICATION1 .,
+
+EQUIV = IMPLICATION $('.EQ' .OUT('EQU') ) .,
+
+EXP = '.IF' EXP '.THEN' .OUT('BFP' *1)
+     EXP .OUT('B  ' *2) .LABEL *1
+     '.ELSE' EXP .LABEL *2 /
+     EQUIV .,
+
+ASSIGNPART = '=' EXP ( ASSIGNPART .OUT('ST') /
+     ASSIGNPART / (CALLPART / .EMPTY
+     .OUT('LDF') .OUT('CLL') )
+     .OUT('POP') ) .,
+
+UNTILST = '.UNTIL' .LABEL *1 EXP
+     '.DO' .OUT('BTP' *2) ST
+     .OUT('B  ' *1) .LABEL *2 .,
+
+WHILECLAUSE = '.WHILE' .OUT('BF ' *1)
+     .OUT('POP') EXP .LABEL *1 / .EMPTY .,
+
+FORCLAUSE = VARIABLE '=' .OUT('FLP')
+     .OUT('BFP' *1) EXP '.STEP'
+     .OUT('SST') .OUT('B  ' *2)
+     .LABEL *1 EXP '.UNTIL' .OUT('ADS')
+     .LABEL *2 .OUT('RSR') EXP
+     .OUT('LEQ') WHILECLAUSE '.DO' .,
+
+FORST = '.FOR' .OUT('SET') .LABEL *1
+     FORCLAUSE .OUT('BFP' *2) ST
+     .OUT('RST') .OUT('B  ' *1)
+     .LABEL *2 .,
+
+IOCALL = 'READ' '(' VARIABLE ',' EXP ')' .OUT('RED') /
+     'WRITE' '(' VARIABLE ',' EXP ')' .OUT('WRT') /
+     'EDIT' '(' EXP ',' .STRING
+     .OUT('EDT' *) ')'
+     'PRINT' .OUT('PNT') /
+     'EJECT' .OUT('EJT') .,
+
+IDSEQ1 = .ID .LABEL* .OUT('BLK 1') .,
+
+IDSEQ = IDSEQ1 $(',' IDSEQ1) .,
+
+TYPEDEC = '.REAL' IDSEQ .,
+
+ARRAY1 = .ID .LABEL * '(.' 'O' '..' .NUMBER
+     .OUT('BLK 1') .OUT('BLK' *) '.)' .,
+
+ARRAYDEC = '.ARRAY' ARRAY1 $( ',' ARRAY1) .,
+
+PROCEDURE = '.PROCEDURE' .ID .LABEL *
+     .LABEL *1 .OUT('BLK 1') '('
+     (IDSEQ / .EMPTY) ')' .OUT('SP  1') '.,'
+     ST .OUT('R  ' *1) .,
+
+DEC = TYPEDEC / ARRAYDEC / PROCEDURE .,
+
+BLOCK = '.BEGIN' .OUT('B  ' *1) $(DEC '.,')
+     .LABEL *1 ST $('.,' ST) '.END'
+     (.ID / .EMPTY) .,
+
+UNCONDITIONALST = IOCALL / ASSIGNCALLST /
+     BLOCK .,
+
+CONDST = '.IF' EXP '.THEN' .OUT('BFP' *1)
+     (UNCONDITIONALST ('.ELSE' .OUT('B  ' *2)
+     .LABEL *1 ST .LABEL *2 / .EMTPY
+     .LABEL *1) / (FORST / UNTILST)
+     .LABEL *1) .,
+
+ST = CONDST / UNCONDITIONALST / FORST /
+     UNTILST / .EMPTY .,
+
+PROGRAM = BLOCK
+     .OUT('HLT' .OUT('SP  1') .OUT('END') .,
+
+.END
+\end{verbatim}
+\end{figure}
+
+
+% TODO: Figure (Order list of the VALGOL II machine)
+
+\begin{figure}
+\caption{Example program in VALGOL II}
+\begin{verbatim}
+.BEGIN
+.PROCEDURE DETERMINANT(A, N) .,
+.BEGIN
+.PROCEDURE DUMP() .,
+.BEGIN
+.REAL D .,
+.FOR D = 0 .STEP 1 .UNTIL N-1 .DO
+     WRITE(MATRIX(. N*D .), N) .,
+PRINT
+.END DUMP .,
+.PROCEDURE ABS(X) .,
+     ABS = .IF 0 .L= X .THEN X .ELSE -X .,
+.REAL PRODUCT, FACTOR, TEMP, R, I, J .,
+PRODUCT = 1 .,
+.FOR R = 0 .STEP 1 .UNTIL N-2
+.WHILE PRODUCT .-= 0 .DO .BEGIN
+     I  = R .,
+     .FOR J = R+1 .STEP 1 .UNTIL N-1 .DO
+          .IF ABS( A(. N*I + R .) ) .L
+          ABS( A(. N*J + R .) ) .THEN
+               I = J .,
+     .IF A(. N*I + R .) .= 0 .THEN
+          PRODUCT = 0
+     .ELSE
+          .IF I .-= R .THEN .BEGIN
+               PRODUCT = -PRODUCT .,
+               .FOR J = R .STEP 1 .UNTIL N-1 .DO
+               .BEGIN
+                    TEMP = A(. N*R + J .) .,
+                    A(. N*R + J .) = A (. N* I + J .) .,
+                    A(. N*I + J .) = TEMP .END .END .,
+          TEMP = A(. N*R + R .) .,
+          .FOR I = R+1 .STEP 1 .UNTIL N-1 .DO
+          .BEGIN
+               FACTOR = A(. N*I + R .) / TEMP .,
+               .FOR J = R .STEP 1 .UNTIL N-1 .DO
+                    A(. N*I + J .) = A(. N*I + J .)
+                    -FACTOR * A(. N*R + J .) .,
+          DUMP
+          .END .END .,
+.FOR I = 0 .STEP 1 .UNTIL N-1 .DO
+     PRODUCT = PRODUCT * A(. N*I + I .) .,
+DETERMINANT = PRODUCT
+.END DETERMINANT .,
+.REAL M, W, T ., .ARRAY MATRIX (. 0 .. 24 .) .,
+.UNTIL .FALSE .DO .BEGIN
+     EDIT(I, 'FIND DETERMINANT OF' ) ., PRINT., PRINT.,
+     READ(M, 1) .,
+     .FOR W = 0 .STEP 1 .UTNIL M-1 .DO .BEGIN
+          READ(MATRIX (. M*W .), M) .,
+          WRITE(MATRIX (. M*W .), M) .END .,
+     PRINT .,  T = DETERMINANT (MATRIX, M) .,
+     WRITE(T, 1) ., PRINT., PRINT .END
+.END PROGRAM
+\end{verbatim}
+\end{figure}
+
+\end{document}

@@ -1,0 +1,6 @@
+.SYNTAX NUMLIST
+
+NUMLISTP = ',' .NUMBER .OUT(*) ., 
+NUMLIST = '[' .OUT('(') .NUMBER .OUT(*) $(NUMLISTP) ']' .OUT(')') .,
+
+.END

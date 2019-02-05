@@ -31,27 +31,18 @@ int main(int argc, const char* argv[]) {
   }
   fclose(file);
   
-  
-  
   printf("Enter an expression to parse:\n");
   printf("> ");
   mvm_t* main_vm;
     
   while (fgets(vm_input, MAX_LINE_SIZE, stdin)) {
-
     main_vm = mvm_new(vm_code, vm_input, vm_bytes_read);
-  
     mvm_run_N_instructions(main_vm, 1000);
-
     mvm_free(main_vm);
-  
     printf("> ");    
   }
   
   putchar('\n');
-
-    
-
   return 0;
   
   

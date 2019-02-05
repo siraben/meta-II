@@ -1,11 +1,13 @@
-(load "parser.scm")
+(include "parser.scm")
+(use-modules (ice-9 match)
+             (rnrs bytevectors))
 
 ;; Output stuff to the instruction field.  This is wrapped monadically
 ;; so it can be integrated with the doM* macro.
 (define (out . args)
   (lambda (state)
-    (format #t "\t")
-    (apply format #t args)
+    (format (current-output-port) "\t")
+    (apply format (current-output-port) args)
     (newline)
     (cons args state)))
 
@@ -13,7 +15,7 @@
 ;; can be integrated with the doM* macro.
 (define (label . args)
   (lambda (state)
-    (apply format #t args)
+    (apply format (current-output-port) args)
     (newline)
     (cons args state)))
 
@@ -136,3 +138,12 @@
   (let ((msg (read-file-string filename)))
     (program msg)))
 
+(define (meta-II-to-masm metaII-file out-file)
+  (reset-gensym-counter!)
+  (let ((msg (read-file-string metaII-file))
+        (old-port (current-output-port)))
+    (call-with-output-file out-file
+      (lambda (port)
+        (set-current-output-port port)
+        (program msg)))
+    (set-current-output-port old-port)))
