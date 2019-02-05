@@ -233,10 +233,11 @@ void vm_num_inst(mvm_t *vm) {
   end = strpbrk(*s, delims);
   if (end) {
     size_t id_size = strspn(*s, "1234567890");
+    size_t difference =  *s - (vm->input_buffer_pointer + vm->input_buffer);
     memset(vm->token_buffer, 0, MAX_TOKEN_BUFFER_SIZE);
     
     strncpy(vm->token_buffer, *s, id_size);
-    mvm_advance_input_N(vm, id_size);
+    mvm_advance_input_N(vm, id_size + difference);
     mvm_set_switch(vm);
     debug_print("NUM: %s\nSize: %lu", vm->token_buffer, id_size);
     return;
@@ -365,6 +366,41 @@ void vm_bf_inst(mvm_t *vm) {
   
 }
 
+void push_stackframe(mvm_t *vm, uint16_t address) {
+  if (!vm) {
+    eprintf("PUSH_STACKFRAME: Null pointer received.");
+  }
+  uint8_t sp = vm->stack_pointer;
+  if (sp == 255) {
+    eprintf("PUSH_STACKFRAME: Stack overflow.");
+  }
+  debug_print("PUSH_STACKFRAME: Pushing %d", address);
+  vm->stack[sp].label1 = 0;
+  vm->stack[sp].label2 = 0;
+  vm->stack[sp].return_address = address;
+  vm->stack_pointer++;
+  return;
+}
+
+uint16_t pop_stackframe(mvm_t *vm) {
+  if (!vm) {
+    eprintf("POP_STACKFRAME: Null pointer received.");
+  }
+  uint8_t sp = vm->stack_pointer;
+  if (!sp) {
+    eprintf("POP_STACKFRAME: Stack underflow.");
+  }
+
+  sp--;
+  uint16_t dest = vm->stack[sp].return_address;
+  vm->stack[sp].label1 = 0;
+  vm->stack[sp].label2 = 0;
+  vm->stack[sp].return_address = 0;
+  vm->stack_pointer = sp;
+  debug_print("POP_STACKFRAME: Popping %d", dest);
+  return dest;
+}
+
 void vm_cll_inst(mvm_t *vm) {
   if (!vm) {
     eprintf("VM_CLL_INST: Null pointer received.");
@@ -376,19 +412,13 @@ void vm_cll_inst(mvm_t *vm) {
   if (call_dest >= vm->code_size) {
     eprintf("VM_CLL_INST: Out of bounds.");
   }
-  uint8_t sp = vm->stack_pointer;
-  debug_print("VM_CLL: Stack at %d", sp);
-  debug_print("VM_CLL: Calling %d", call_dest);  
-  if (sp >= 255) {
-    eprintf("VM_CLL_INST: Stack overflow.");
-  }
-  vm->stack[sp].label1 = 0;
-  vm->stack[sp].label2 = 0;
-  vm->stack[sp].return_address = vm->ip + 1;
-  vm->stack_pointer++;
-  vm->stack_empty = false;
-    
+  push_stackframe(vm, call_dest);
+  
+  debug_print("CLL: Stack at %d.", vm->stack_pointer);
+  debug_print("CLL: Calling %d", call_dest);  
+
   vm->ip = call_dest;
+
   
 }
 
@@ -396,23 +426,14 @@ void vm_r_inst(mvm_t *vm) {
   if (!vm) {
     eprintf("VM_R_INST: Null pointer received.");
   }
-  
-  uint8_t sp = vm->stack_pointer;
-  uint16_t return_dest = vm->stack[sp].return_address;
-  debug_print("R: Returning to %d", return_dest);
-  if (vm->stack_empty) {
-    eprintf("VM_R_INST: Stack underflow.");
-  }
-  
 
+  uint8_t sp = vm->stack_pointer;
+
+  uint16_t return_dest = pop_stackframe(vm);
   if (return_dest >= vm->code_size) {
     eprintf("VM_R_INST: Out of bounds.");
   }
-  if (sp > 0) {
-    vm->stack_pointer--;
-  } else {
-    vm->stack_empty = true;
-  }
+  debug_print("R: Returning to %d", return_dest);
   
   vm->ip = return_dest;
   
@@ -471,7 +492,6 @@ mvm_t *mvm_new(uint8_t *code, const char *input, uint16_t code_size) {
   // Install opcodes.
   install_opcodes(res);
   res->input_size = strlen(input);
-  res->stack_empty = true;
   strncpy(res->input_buffer, input, strlen(input));
   return res;
   
@@ -496,6 +516,8 @@ void mvm_advance_input_N(mvm_t * vm, uint16_t amount) {
 
 void mvm_run_N_instructions(mvm_t *vm, uint16_t max_instructions) {
   printf("Initial start.\n");
+  // We push the ending address for the VM.
+  push_stackframe(vm, vm->code_size - 1);
   mvm_print_info(vm);
   opcode_implementation *current_instruction;
   for (uint16_t i = 0; i < max_instructions; i++) {
@@ -535,7 +557,7 @@ void mvm_print_info(mvm_t *vm) {
   printf("Rest of input: >%s", vm->input_buffer + vm->input_buffer_pointer);
   printf("Input buffer pointer: %hu\n", vm->input_buffer_pointer);
   // printf("Output buffer pointer: %hu\n", vm->output_buffer_pointer);
-  printf("Stack pointer: %d and %sempty\n", vm->stack_pointer, vm->stack_empty ? "" : "not ");
+  printf("Stack pointer: %d\n", vm->stack_pointer);
   printf("Switch: %d\n", vm->the_switch);
 
   

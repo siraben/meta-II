@@ -227,7 +227,7 @@
                                macro-val
                                *pc*))
                 (begin (if (inst? macro-val)
-                           ;; This macro generated an instruyction
+                           ;; This macro generated an instruction
                            ;; record, so advance the program counter.
                            (advance-pc! (inst-length macro-val)))
                        ;; Return a "tagged" result, where the original
