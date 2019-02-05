@@ -30,6 +30,7 @@ typedef struct mvm {
   mvm_stackframe_t stack[256];
 
   // We store pointers like this so that the VM can be self-contained.
+  // The stack pointer is pointing at the next free stack entry.
   uint8_t stack_pointer;
   
   char input_buffer[MAX_INPUT_BUFFER_SIZE];
