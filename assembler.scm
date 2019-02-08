@@ -318,7 +318,7 @@
         (return `(,(string->symbol x)))))
 
 (define masm-complex-command-label
-  (doM* (command-name <- (one-of-strings '("CLL" "BT" "BF" "BT" "ADR")))
+  (doM* (command-name <- (one-of-strings '("CLL" "BT" "BF" "B" "ADR")))
         (many (char #\space))
         (label <- (many1 alpha-num))
         (return `(,(string->symbol command-name) ,label))))

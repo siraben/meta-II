@@ -1,9 +1,11 @@
-.SYNTAX HELP
+.SYNTAX MENU
 
 MORE = 'more' .OUT('You found more!') .,
 BUGS = 'bugs' .OUT('There are some issues with operators such as $.') .,
-HELP = 'help' .OUT('Valid commands are: "help", "info", "bugs".') /
-       'info' .OUT('This is the META II compiler and bytecode assembler written by siraben.') /
+INFO = 'info' .OUT('This is the META II compiler and bytecode assembler written by siraben.') .,
+HELP = 'help' .OUT('Valid commands are: "help", "info", "bugs".') .,
+MENU = HELP /
+       INFO /
        BUGS /
        MORE .,
 

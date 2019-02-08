@@ -1,6 +1,6 @@
-.SYNTAX NUMLIST
+.SYNTAX EX1
 
-NUMLISTP = ',' .NUMBER .OUT(*) ., 
-NUMLIST = '[' .OUT('(') .NUMBER .OUT(*) $(NUMLISTP) ']' .OUT(')') .,
+EX3 = .ID .OUT('LD ' *) / '(' EX1 ')' .,
+EX1 = EX3 $ ('+' EX3 .OUT('ADD')) .,
 
 .END

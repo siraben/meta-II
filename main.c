@@ -13,11 +13,13 @@
 
 int main(int argc, const char* argv[]) {
   if (argc < 2) {
-    fputs("Usage: ./vm <META II bytecode file>\n", stdout);
+    fputs("Usage: ./vm <META II bytecode file> (optional verbose y|n)\n", stdout);
     return 1;
   }
-  if (*argv[2] == 'y') {
-    debug = 1;
+  if (argc == 2) {
+    if (*argv[1] == 'y') {
+      debug = 1;
+    }
   }
   FILE* file;
 
