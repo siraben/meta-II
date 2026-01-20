@@ -21,10 +21,12 @@ $(EXE): $(OBJS) $(HDRS) Makefile
 all: $(OBJS) $(HDRS) Makefile
 	$(CC) $(CFLAGS) -o vm $(OBJS) $(LIBS)
 
-.PHONY: clean
+.PHONY: clean test
 clean:
-	rm -f core $(EXE) *.o
+	rm -f core $(EXE) *.o meta-II.img
 
+test: all
+	./test.sh
 
 fuzz:
 	$(FUZZCC) $(CCARGS)
