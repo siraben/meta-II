@@ -107,6 +107,8 @@ void vm_tst_inst(mvm_t *vm) {
   char *original = vm->input_buffer_pointer + vm->input_buffer;
   char **s = &original;
   skip_whitespace(s);
+  // Calculate whitespace that was skipped
+  size_t whitespace_skipped = *s - (vm->input_buffer_pointer + vm->input_buffer);
 
   strncpy(vm->scratch_buffer, (char *)(vm->code + vm->ip),
           MAX_TOKEN_BUFFER_SIZE);
@@ -119,7 +121,8 @@ void vm_tst_inst(mvm_t *vm) {
                 token_size + vm->ip + 1);
     mvm_set_switch(vm);
 
-    mvm_advance_input_N(vm, token_size);
+    // Advance by whitespace + token size
+    mvm_advance_input_N(vm, whitespace_skipped + token_size);
     // Also skip NULL delimiter.
     mvm_advance_ip_N(vm, token_size + 1);
     return;
@@ -209,27 +212,32 @@ void vm_id_inst(mvm_t *vm) {
 
   char *original = vm->input_buffer_pointer + vm->input_buffer;
   char **s = &original;
-  char *end;
   skip_whitespace(s);
-  if (!isalpha(**s) && !isnumber(**s)) {
+  size_t whitespace_skipped = *s - (vm->input_buffer_pointer + vm->input_buffer);
+
+  // Identifiers must start with a letter
+  if (!isalpha(**s)) {
     mvm_reset_switch(vm);
     debug_print("ID failed");
     return;
   }
-  end = strpbrk(*s, delims);
-  if (end) {
-    size_t id_size = strcspn(*s, delims);
-    size_t difference = *s - (vm->input_buffer_pointer + vm->input_buffer);
+
+  // Count alphanumeric characters only
+  size_t id_size = 0;
+  while (isalnum((*s)[id_size])) {
+    id_size++;
+  }
+
+  if (id_size > 0) {
     memset(vm->token_buffer, 0, MAX_TOKEN_BUFFER_SIZE);
     strncpy(vm->token_buffer, *s, id_size);
-    mvm_advance_input_N(vm, id_size + difference);
+    mvm_advance_input_N(vm, id_size + whitespace_skipped);
     mvm_set_switch(vm);
     debug_print("ID: %s\nSize: %lu", vm->token_buffer, id_size);
     return;
   }
 
   mvm_reset_switch(vm);
-
   debug_print("ID failed");
   return;
 }
@@ -278,6 +286,9 @@ void vm_sr_inst(mvm_t *vm) {
   char **s = &original;
   char *end;
   skip_whitespace(s);
+  // Calculate whitespace that was skipped
+  size_t whitespace_skipped = *s - (vm->input_buffer_pointer + vm->input_buffer);
+
   if (**s != '\'') {
     mvm_reset_switch(vm);
     debug_print("SR failed");
@@ -294,7 +305,8 @@ void vm_sr_inst(mvm_t *vm) {
     clear_token_buffer(vm);
     // Copy the string quotes too.
     strncpy(vm->token_buffer, *s, id_size + 1);
-    mvm_advance_input_N(vm, id_size + 1);
+    // Advance by whitespace + string (including quotes)
+    mvm_advance_input_N(vm, whitespace_skipped + id_size + 1);
     mvm_set_switch(vm);
     debug_print("SR: %s\nSize: %lu", vm->token_buffer, id_size);
     return;
@@ -431,10 +443,12 @@ void vm_cll_inst(mvm_t *vm) {
   if (call_dest >= vm->code_size) {
     eprintf("VM_CLL_INST: Out of bounds.");
   }
-  push_stackframe(vm, call_dest);
+  // Push return address (current IP after reading the address bytes)
+  uint16_t return_addr = vm->ip + 1;
+  push_stackframe(vm, return_addr);
 
   debug_print("CLL: Stack at %d.", vm->stack_pointer);
-  debug_print("CLL: Calling %d", call_dest);
+  debug_print("CLL: Calling %d, return to %d", call_dest, return_addr);
 
   vm->ip = call_dest;
 }
