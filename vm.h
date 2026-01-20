@@ -9,7 +9,7 @@
 #define MAX_TOKEN_BUFFER_SIZE 128
 #define MAX_CODE_BYTES 65535
 
-int debug;
+extern int debug;
 typedef struct mvm_stackframe {
   uint8_t label1;
   uint8_t label2;
